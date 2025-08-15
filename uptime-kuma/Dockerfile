@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/hassio-addons/base/amd64:12.0.0
+ARG BUILD_FROM=ghcr.io/hassio-addons/base:18.1.0
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -12,38 +12,43 @@ COPY requirements.txt /opt/
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Setup base
-# hadolint ignore=DL3003
+ARG UPTIME_KUMA_VERSION="1.23.16"
+ARG CLOUDFLARED_VERSION="2025.8.0"
+ARG BUILD_ARCH=amd64
+# hadolint ignore=DL3003,DL3042
 RUN \
     apk add --no-cache --virtual .build-dependencies \
-        build-base=0.5-r2 \
-        py3-pip=22.1.1-r0 \
-        python3-dev=3.10.4-r0 \
+        build-base=0.5-r3 \
+        py3-pip=25.1.1-r0 \
     \
     && apk add --no-cache \
-        nodejs=16.15.0-r1 \
-        npm=8.10.0-r0 \
-        python3=3.10.4-r0 \
-        iputils=20211215-r0 \
-        setpriv=2.38-r1 \
-    \
-    && npm config set unsafe-perm true \
+        iputils=20240905-r0 \
+        nodejs=22.16.0-r2 \
+        npm=11.3.0-r0 \
+        python3=3.12.11-r0 \
+        setpriv=2.41-r9 \
     \
     && mkdir -p /opt/uptime-kuma \
-    && curl -L -s "https://github.com/louislam/uptime-kuma/archive/refs/tags/1.16.1.tar.gz" \
+    && curl -L -s "https://github.com/louislam/uptime-kuma/archive/refs/tags/${UPTIME_KUMA_VERSION}.tar.gz" \
         | tar zxvf - --strip-components 1 -C /opt/uptime-kuma \
     \
     && cd /opt/uptime-kuma \
     \
-    && pip install --no-cache-dir -r /opt/requirements.txt \
+    && pip install -r /opt/requirements.txt \
     \
     && npm ci \
-        --production \
         --no-audit \
-        --no-optional \
+        --no-fund \
         --no-update-notifier \
-        --only=production \
-        --unsafe-perm \
+        --omit=dev \
     && npm run download-dist \
+    \
+    && if [ "${BUILD_ARCH}" = "aarch64" ]; then CLOUDFLARED_ARCH="arm64"; \
+    elif [ "${BUILD_ARCH}" = "amd64" ]; then CLOUDFLARED_ARCH="amd64"; \
+    elif [ "${BUILD_ARCH}" = "armv7" ]; then CLOUDFLARED_ARCH="arm"; fi \
+    && curl -L --fail -o /usr/bin/cloudflared \
+        "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${CLOUDFLARED_ARCH}" \
+    && chmod +x /usr/bin/cloudflared \
     \
     && npm cache clear --force \
     \
@@ -54,12 +59,10 @@ RUN \
         /root/.npm \
         /root/.npmrc
 
-
 # Copy root filesystem
 COPY rootfs /
 
 # Build arguments
-ARG BUILD_ARCH
 ARG BUILD_DATE
 ARG BUILD_DESCRIPTION
 ARG BUILD_NAME

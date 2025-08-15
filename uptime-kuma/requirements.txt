@@ -1,1 +1,2 @@
-apprise==0.9.9
+apprise==1.9.4
+paho-mqtt==2.1.0

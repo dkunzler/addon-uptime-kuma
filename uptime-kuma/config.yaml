@@ -10,9 +10,7 @@ init: false
 arch:
   - aarch64
   - amd64
-  - armhf
   - armv7
-  - i386
 ports:
   3001/tcp: 3001
 ports_description:
@@ -22,3 +20,6 @@ options:
   disable_frame_same_origin: false
 schema:
   disable_frame_same_origin: bool
+  
+discovery:
+  - uptime_kuma
